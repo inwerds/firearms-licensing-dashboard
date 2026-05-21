@@ -16,6 +16,10 @@ def get_data():
 
 df = get_data()
 
+import os
+mem_mb = df.memory_usage(deep=True).sum() / 1e6
+st.sidebar.caption(f"Data in memory: {mem_mb:.0f} MB")
+
 # --- Header ---
 st.title("Massachusetts Firearms Licensing Dashboard")
 st.markdown("19 years of licensing data · 2006–2024 · 1.6 million applications")
