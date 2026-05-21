@@ -152,7 +152,12 @@ with tab_map:
             .sort_values("applications", ascending=False)
             .head(20)
             .reset_index(drop=True)
-            
+        )
+        top_zips.index += 1
+        st.dataframe(top_zips, use_container_width=True)
+
+with tab_data:
+
 with tab_data:
 
     st.subheader("Raw Data")
