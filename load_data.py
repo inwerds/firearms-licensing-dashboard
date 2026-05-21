@@ -32,7 +32,7 @@ def load_data():
 
     # Parse dates
     for col in ["application_date", "issue_date", "expiration_date", "denial_date"]:
-    combined[col] = pd.to_datetime(combined[col], format="mixed", errors="coerce")
+        combined[col] = pd.to_datetime(combined[col], format="mixed", errors="coerce")
 
     # Derive useful columns
     combined["year"] = combined["application_date"].dt.year
