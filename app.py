@@ -69,7 +69,7 @@ col4.metric("Median Processing Days",
 st.divider()
 
 # --- Tabs ---
-tab_charts, tab_data = st.tabs(["📈 Charts", "📋 Raw Data"])
+tab_charts, tab_map, tab_data = st.tabs(["📈 Charts", "🗺️ Map", "📋 Raw Data"])
 
 with tab_charts:
 
@@ -105,6 +105,54 @@ with tab_charts:
         )
     st.plotly_chart(fig3, use_container_width=True)
 
+with tab_map:
+    st.subheader("Applications by Zip Code")
+    st.markdown("Colored by total applications · filtered by sidebar selections")
+
+    zip_counts = (
+        filtered[filtered["applicant_zip"].notna()]
+        .groupby("applicant_zip")
+        .size()
+        .reset_index(name="applications")
+    )
+
+    if len(zip_counts) == 0:
+        st.warning("No zip code data for current filters.")
+    else:
+        import json
+        with open("data/ma_zip_codes.geojson") as f:
+            ma_geojson = json.load(f)
+
+        fig_map = px.choropleth(
+            zip_counts,
+            geojson=ma_geojson,
+            locations="applicant_zip",
+            featureidkey="properties.ZCTA5CE10",
+            color="applications",
+            color_continuous_scale="Blues",
+            title="Firearms License Applications by Zip Code",
+            labels={"applications": "Total Applications"}
+        )
+
+        fig_map.update_geos(
+            fitbounds="locations",
+            visible=False
+        )
+
+        fig_map.update_layout(
+            margin={"r": 0, "t": 30, "l": 0, "b": 0},
+            height=600
+        )
+
+        st.plotly_chart(fig_map, use_container_width=True)
+
+        st.subheader("Top 20 Zip Codes by Volume")
+        top_zips = (
+            zip_counts
+            .sort_values("applications", ascending=False)
+            .head(20)
+            .reset_index(drop=True)
+            
 with tab_data:
 
     st.subheader("Raw Data")
