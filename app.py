@@ -76,7 +76,7 @@ with tab_charts:
     st.subheader("Applications by Year")
     yearly = filtered.groupby("year").size().reset_index(name="applications")
     fig1 = px.line(yearly, x="year", y="applications", markers=True)
-    st.plotly_chart(fig1, use_container_width=True)
+    st.plotly_chart(fig1, width='stretch')
 
     st.subheader("Applications by Type")
     by_type = (
@@ -86,7 +86,7 @@ with tab_charts:
     )
     fig2 = px.bar(by_type, x="year", y="applications",
                   color="application_type", barmode="stack")
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, width='stretch')
 
     st.subheader("Median Processing Days by Year")
     processing = (
@@ -103,7 +103,7 @@ with tab_charts:
             text="Sandy Hook surge",
             showarrow=True, arrowhead=2, yshift=10
         )
-    st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(fig3, width='stretch')
 
 with tab_map:
     st.subheader("Applications by Zip Code")
@@ -144,7 +144,7 @@ with tab_map:
             height=600
         )
 
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, width='stretch')
 
         st.subheader("Top 20 Zip Codes by Volume")
         top_zips = (
@@ -154,7 +154,7 @@ with tab_map:
             .reset_index(drop=True)
         )
         top_zips.index += 1
-        st.dataframe(top_zips, use_container_width=True)
+        st.dataframe(top_zips, width='stretch')
 
 with tab_data:
 
@@ -183,7 +183,7 @@ with tab_data:
 
     st.dataframe(
         display_df[selected_cols].head(DISPLAY_LIMIT),
-        use_container_width=True,
+        width='stretch',
         height=500
     )
 
