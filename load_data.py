@@ -49,9 +49,19 @@ def load_data():
         combined["application_type"].isin(["Renewal", "New", "Replacement"])
     ]
 
-    # Fix date parsing warning
+   # Fix date parsing warning
     for col in ["application_date", "issue_date", "expiration_date", "denial_date"]:
         combined[col] = pd.to_datetime(combined[col], format="mixed", errors="coerce")
+
+    # Normalize zip codes to 5-digit strings
+    combined["applicant_zip"] = (
+        combined["applicant_zip"]
+        .astype(str)           # convert everything to string first
+        .str.strip()           # remove whitespace
+        .str.replace(r'\.0$', '', regex=True)  # remove trailing .0 from floats
+        .str.zfill(5)          # pad with leading zeros
+        .where(combined["applicant_zip"].notna(), other=None)  # restore NaNs
+    )    
 
     return combined
 
@@ -67,3 +77,8 @@ if __name__ == "__main__":
     print(df["application_type"].value_counts())
     print("\nSample processing days (median by year):")
     print(df.groupby("year")["processing_days"].median().round(1))
+
+    # --- Add these lines ---
+    print("\nZip sample after fix:")
+    print(df["applicant_zip"].sample(10).tolist())
+    print("Any still missing leading zero:", (df["applicant_zip"].str.len() < 5).sum())
