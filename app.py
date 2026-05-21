@@ -1,6 +1,8 @@
 import streamlit as st
-from load_data import load_data
+import pandas as pd
 import plotly.express as px
+import json
+from load_data import load_data
 
 # --- Page config ---
 st.set_page_config(
@@ -9,16 +11,17 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Load data ---
+# --- Load data (cached so it only runs once) ---
 @st.cache_data
 def get_data():
     return load_data()
 
-df = get_data()
+@st.cache_data
+def load_geojson():
+    with open("data/ma_zip_codes.geojson") as f:
+        return json.load(f)
 
-import os
-mem_mb = df.memory_usage(deep=True).sum() / 1e6
-st.sidebar.caption(f"Data in memory: {mem_mb:.0f} MB")
+df = get_data()
 
 # --- Header ---
 st.title("Massachusetts Firearms Licensing Dashboard")
@@ -40,12 +43,14 @@ selected_types = st.sidebar.multiselect(
     default=["New", "Renewal", "Replacement"]
 )
 
-# Municipality filter
 all_municipalities = sorted(df["licensing_authority"].dropna().unique())
 selected_municipality = st.sidebar.selectbox(
     "Municipality",
     options=["All municipalities"] + all_municipalities,
 )
+
+mem_mb = df.memory_usage(deep=True).sum() / 1e6
+st.sidebar.caption(f"Data in memory: {mem_mb:.0f} MB")
 
 # --- Apply filters ---
 filtered = df[
@@ -67,8 +72,8 @@ col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Applications", f"{len(filtered):,}")
 col2.metric("Years Covered", f"{year_min}–{year_max}")
 col3.metric("Municipalities", f"{filtered['licensing_authority'].nunique():,}")
-col4.metric("Median Processing Days",
-            f"{filtered[filtered['processing_days'] > 0]['processing_days'].median():.0f}")
+median_days = filtered[filtered["processing_days"] > 0]["processing_days"].median()
+col4.metric("Median Processing Days", f"{median_days:.0f}")
 
 st.divider()
 
@@ -112,60 +117,52 @@ with tab_charts:
 with tab_map:
     st.subheader("Applications by Zip Code")
     st.markdown("Colored by total applications · filtered by sidebar selections")
+    st.info("Click the button to generate the map after setting your filters.")
 
-    zip_counts = (
-        filtered[filtered["applicant_zip"].notna()]
-        .groupby("applicant_zip")
-        .size()
-        .reset_index(name="applications")
-    )
-
-    if len(zip_counts) == 0:
-        st.warning("No zip code data for current filters.")
-    else:
-        import json
-        with open("data/ma_zip_codes.geojson") as f:
-            ma_geojson = json.load(f)
-
-        fig_map = px.choropleth(
-            zip_counts,
-            geojson=ma_geojson,
-            locations="applicant_zip",
-            featureidkey="properties.ZCTA5CE10",
-            color="applications",
-            color_continuous_scale="Blues",
-            title="Firearms License Applications by Zip Code",
-            labels={"applications": "Total Applications"}
+    if st.button("Generate Map"):
+        zip_counts = (
+            filtered[filtered["applicant_zip"].notna()]
+            .groupby("applicant_zip")
+            .size()
+            .reset_index(name="applications")
         )
 
-        fig_map.update_geos(
-            fitbounds="locations",
-            visible=False
-        )
+        if len(zip_counts) == 0:
+            st.warning("No zip code data for current filters.")
+        else:
+            ma_geojson = load_geojson()
 
-        fig_map.update_layout(
-            margin={"r": 0, "t": 30, "l": 0, "b": 0},
-            height=600
-        )
+            fig_map = px.choropleth(
+                zip_counts,
+                geojson=ma_geojson,
+                locations="applicant_zip",
+                featureidkey="properties.ZCTA5CE10",
+                color="applications",
+                color_continuous_scale="Blues",
+                title="Firearms License Applications by Zip Code",
+                labels={"applications": "Total Applications"}
+            )
+            fig_map.update_geos(fitbounds="locations", visible=False)
+            fig_map.update_layout(
+                margin={"r": 0, "t": 30, "l": 0, "b": 0},
+                height=600
+            )
+            st.plotly_chart(fig_map, width='stretch')
 
-        st.plotly_chart(fig_map, width='stretch')
-
-        st.subheader("Top 20 Zip Codes by Volume")
-        top_zips = (
-            zip_counts
-            .sort_values("applications", ascending=False)
-            .head(20)
-            .reset_index(drop=True)
-        )
-        top_zips.index += 1
-        st.dataframe(top_zips, width='stretch')
+            st.subheader("Top 20 Zip Codes by Volume")
+            top_zips = (
+                zip_counts
+                .sort_values("applications", ascending=False)
+                .head(20)
+                .reset_index(drop=True)
+            )
+            top_zips.index += 1
+            st.dataframe(top_zips, width='stretch')
 
 with tab_data:
 
-
     st.subheader("Raw Data")
 
-    # Cap display at 10,000 rows to avoid browser limits
     DISPLAY_LIMIT = 10_000
     display_df = filtered.reset_index(drop=True)
     truncated = len(display_df) > DISPLAY_LIMIT
@@ -176,7 +173,6 @@ with tab_data:
         f"{'_Apply filters or select a municipality to narrow results_' if truncated else 'All rows shown'}"
     )
 
-    # Column selector
     all_cols = filtered.columns.tolist()
     selected_cols = st.multiselect(
         "Columns to display",
@@ -195,10 +191,9 @@ with tab_data:
         st.info(
             f"⚠️ Display limited to {DISPLAY_LIMIT:,} rows. "
             "Use the sidebar filters or select a municipality to see a smaller subset. "
-            "The download below includes **all** filtered rows."
+            "The download below includes all filtered rows."
         )
 
-    # Download button — always exports full filtered data
     @st.cache_data
     def to_csv(dataframe):
         return dataframe.to_csv(index=False).encode("utf-8")
