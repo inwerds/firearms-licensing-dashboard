@@ -158,7 +158,6 @@ with tab_map:
 
 with tab_data:
 
-with tab_data:
 
     st.subheader("Raw Data")
 
