@@ -50,6 +50,9 @@ selected_municipality = st.sidebar.selectbox(
     options=["All municipalities"] + all_municipalities,
 )
 
+zip_input = st.sidebar.text_input("Zip code", placeholder="e.g. 02101")
+zip_code = zip_input.strip() or None
+
 # --- Guard: no application types selected ---
 if not selected_types:
     st.warning("Please select at least one application type.")
@@ -58,7 +61,7 @@ if not selected_types:
 muni = selected_municipality if selected_municipality != "All municipalities" else None
 
 # --- Summary metrics ---
-stats = get_summary_stats(year_min, year_max, selected_types, muni)
+stats = get_summary_stats(year_min, year_max, selected_types, muni, zip_code)
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Applications", f"{stats['total']:,}")
@@ -73,8 +76,10 @@ tab_charts, tab_map, tab_data = st.tabs(["📈 Charts", "🗺️ Map", "📋 Raw
 
 with tab_charts:
 
-    female_pct = get_female_pct(year_min, year_max, selected_types, muni)
+    female_pct = get_female_pct(year_min, year_max, selected_types, muni, zip_code)
     muni_label = muni if muni else "all Massachusetts municipalities"
+    if zip_code:
+        muni_label = f"zip code {zip_code}"
     types_label = ", ".join(selected_types)
     year_span = year_max - year_min + 1
     summary_parts = [
@@ -91,24 +96,24 @@ with tab_charts:
     st.markdown(" ".join(summary_parts))
 
     st.subheader("Applications by Year")
-    yearly = get_yearly_counts(year_min, year_max, selected_types, muni)
+    yearly = get_yearly_counts(year_min, year_max, selected_types, muni, zip_code)
     fig1 = px.line(yearly, x="year", y="applications", markers=True)
     st.plotly_chart(fig1, width='stretch')
 
     st.subheader("Applications by Type")
-    by_type = get_type_counts(year_min, year_max, selected_types, muni)
+    by_type = get_type_counts(year_min, year_max, selected_types, muni, zip_code)
     fig2 = px.bar(by_type, x="year", y="applications",
                   color="application_type", barmode="stack")
     st.plotly_chart(fig2, width='stretch')
 
     st.subheader("Median Processing Days by Year")
-    processing = get_processing_days(year_min, year_max, selected_types, muni)
+    processing = get_processing_days(year_min, year_max, selected_types, muni, zip_code)
     fig3 = px.bar(processing, x="year", y="processing_days",
                   color="processing_days", color_continuous_scale="Reds")
     st.plotly_chart(fig3, width='stretch')
 
     st.subheader("Applications by Sex over Time")
-    sex_counts = get_sex_counts(year_min, year_max, selected_types, muni)
+    sex_counts = get_sex_counts(year_min, year_max, selected_types, muni, zip_code)
 
     # Add a female percentage column for the annotation
     sex_pivot = sex_counts.pivot(index="year", columns="sex", values="applications").fillna(0)
@@ -140,7 +145,7 @@ with tab_charts:
     st.plotly_chart(fig5, width='stretch')
 
     st.subheader("Year-over-Year % Change in Applications")
-    yoy = get_yoy_change(year_min, year_max, selected_types, muni)
+    yoy = get_yoy_change(year_min, year_max, selected_types, muni, zip_code)
     if len(yoy) < 2:
         st.info("Need at least two years of data to compute year-over-year change.")
     else:
@@ -168,7 +173,7 @@ with tab_map:
     st.info("Click the button to generate the map after setting your filters.")
 
     if st.button("Generate Map"):
-        zip_counts = get_zip_counts(year_min, year_max, selected_types, muni)
+        zip_counts = get_zip_counts(year_min, year_max, selected_types, muni, zip_code)
 
         if len(zip_counts) == 0:
             st.warning("No zip code data for current filters.")
@@ -200,7 +205,7 @@ with tab_data:
     st.subheader("Raw Data")
 
     DISPLAY_LIMIT = 10_000
-    raw = get_raw_data(year_min, year_max, selected_types, muni, limit=DISPLAY_LIMIT)
+    raw = get_raw_data(year_min, year_max, selected_types, muni, zip_code, limit=DISPLAY_LIMIT)
     total_count = stats["total"]
     truncated = total_count > DISPLAY_LIMIT
 
@@ -218,7 +223,7 @@ with tab_data:
         )
 
     if st.button("Prepare Download"):
-        full_data = get_full_filtered_data(year_min, year_max, selected_types, muni)
+        full_data = get_full_filtered_data(year_min, year_max, selected_types, muni, zip_code)
         csv = full_data.to_csv(index=False).encode("utf-8")
         st.download_button(
             label=f"⬇️ Download all {len(full_data):,} rows as CSV",
