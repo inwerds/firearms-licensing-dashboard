@@ -83,7 +83,7 @@ col4.metric("Median Processing Days", f"{stats['median_days']:.0f}")
 st.divider()
 
 # --- Tabs ---
-tab_charts, tab_map, tab_licenses, tab_data, tab_about = st.tabs(["📈 Charts", "🗺️ Map", "📋 Active Licenses", "📋 Raw Data", "ℹ️ About"])
+tab_charts, tab_map, tab_licenses, tab_data, tab_about = st.tabs(["📈 Charts", "🗺️ Map", "📊 Active Licenses", "📋 Raw Data", "ℹ️ About"])
 
 with tab_charts:
 
