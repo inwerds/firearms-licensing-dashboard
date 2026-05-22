@@ -87,12 +87,6 @@ with tab_charts:
     processing = get_processing_days(year_min, year_max, selected_types, muni)
     fig3 = px.bar(processing, x="year", y="processing_days",
                   color="processing_days", color_continuous_scale="Reds")
-    if not muni:
-        fig3.add_annotation(
-            x=2013, y=89,
-            text="Sandy Hook surge",
-            showarrow=True, arrowhead=2, yshift=10
-        )
     st.plotly_chart(fig3, width='stretch')
 
     st.subheader("Applications by Sex over Time")
