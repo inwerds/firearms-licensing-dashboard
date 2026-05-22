@@ -4,7 +4,8 @@ import json
 from load_data import (
     get_yearly_counts, get_type_counts, get_processing_days,
     get_zip_counts, get_summary_stats, get_municipalities,
-    get_raw_data, get_full_filtered_data, get_sex_counts, get_yoy_change
+    get_raw_data, get_full_filtered_data, get_sex_counts, get_yoy_change,
+    get_female_pct
 )
 
 # --- Page config ---
@@ -71,6 +72,23 @@ st.divider()
 tab_charts, tab_map, tab_data = st.tabs(["📈 Charts", "🗺️ Map", "📋 Raw Data"])
 
 with tab_charts:
+
+    female_pct = get_female_pct(year_min, year_max, selected_types, muni)
+    muni_label = muni if muni else "all Massachusetts municipalities"
+    types_label = ", ".join(selected_types)
+    year_span = year_max - year_min + 1
+    summary_parts = [
+        f"From {year_min} to {year_max} ({year_span} {'year' if year_span == 1 else 'years'}), "
+        f"there were **{stats['total']:,}** {types_label.lower()} applications "
+        f"across {muni_label}.",
+        f"The median processing time over this period was **{stats['median_days']:.0f} days**.",
+    ]
+    if female_pct is not None:
+        summary_parts.append(
+            f"Female applicants accounted for **{female_pct:.1f}%** of applications "
+            f"where sex was recorded."
+        )
+    st.markdown(" ".join(summary_parts))
 
     st.subheader("Applications by Year")
     yearly = get_yearly_counts(year_min, year_max, selected_types, muni)

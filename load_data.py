@@ -154,6 +154,27 @@ def get_full_filtered_data(year_min, year_max, app_types, municipality=None):
     con.close()
     return result
 
+def get_female_pct(year_min, year_max, app_types, municipality=None):
+    con = get_connection()
+    muni_filter = "AND licensing_authority = ?" if municipality else ""
+    params = [year_min, year_max] + app_types
+    if municipality:
+        params.append(municipality)
+    query = f"""
+        SELECT
+            ROUND(
+                COUNT(*) FILTER (WHERE sex = 'FEMALE') * 100.0
+                / NULLIF(COUNT(*) FILTER (WHERE sex IN ('MALE', 'FEMALE')), 0),
+            1) as female_pct
+        FROM applications
+        WHERE year >= ? AND year <= ?
+        AND application_type IN ({','.join(['?']*len(app_types))})
+        {muni_filter}
+    """
+    result = con.execute(query, params).fetchone()
+    con.close()
+    return result[0]
+
 def get_yoy_change(year_min, year_max, app_types, municipality=None):
     con = get_connection()
     muni_filter = "AND licensing_authority = ?" if municipality else ""
