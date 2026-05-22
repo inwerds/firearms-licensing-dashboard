@@ -154,6 +154,36 @@ def get_full_filtered_data(year_min, year_max, app_types, municipality=None):
     con.close()
     return result
 
+def get_yoy_change(year_min, year_max, app_types, municipality=None):
+    con = get_connection()
+    muni_filter = "AND licensing_authority = ?" if municipality else ""
+    params = [year_min, year_max] + app_types
+    if municipality:
+        params.append(municipality)
+    query = f"""
+        WITH yearly AS (
+            SELECT year, COUNT(*) as applications
+            FROM applications
+            WHERE year >= ? AND year <= ?
+            AND application_type IN ({','.join(['?']*len(app_types))})
+            {muni_filter}
+            GROUP BY year
+            ORDER BY year
+        )
+        SELECT
+            year,
+            applications,
+            ROUND(
+                (applications - LAG(applications) OVER (ORDER BY year)) * 100.0
+                / LAG(applications) OVER (ORDER BY year),
+            1) as yoy_pct
+        FROM yearly
+        ORDER BY year
+    """
+    result = con.execute(query, params).df()
+    con.close()
+    return result.dropna(subset=["yoy_pct"])
+
 def get_sex_counts(year_min, year_max, app_types, municipality=None):
     con = get_connection()
     muni_filter = "AND licensing_authority = ?" if municipality else ""

@@ -4,7 +4,7 @@ import json
 from load_data import (
     get_yearly_counts, get_type_counts, get_processing_days,
     get_zip_counts, get_summary_stats, get_municipalities,
-    get_raw_data, get_full_filtered_data, get_sex_counts
+    get_raw_data, get_full_filtered_data, get_sex_counts, get_yoy_change
 )
 
 # --- Page config ---
@@ -126,6 +126,29 @@ with tab_charts:
     )
     fig5.update_layout(yaxis_ticksuffix="%")
     st.plotly_chart(fig5, width='stretch')
+
+    st.subheader("Year-over-Year % Change in Applications")
+    yoy = get_yoy_change(year_min, year_max, selected_types, muni)
+    if len(yoy) < 2:
+        st.info("Need at least two years of data to compute year-over-year change.")
+    else:
+        max_abs = yoy["yoy_pct"].abs().max()
+        fig6 = px.bar(
+            yoy,
+            x="year",
+            y="yoy_pct",
+            color="yoy_pct",
+            color_continuous_scale=[(0, "red"), (0.5, "lightgrey"), (1, "green")],
+            color_continuous_midpoint=0,
+            range_color=[-max_abs, max_abs],
+            labels={"yoy_pct": "YoY Change", "year": "Year"},
+        )
+        fig6.update_layout(
+            yaxis_ticksuffix="%",
+            coloraxis_showscale=False,
+        )
+        fig6.add_hline(y=0, line_dash="dash", line_color="black", line_width=1)
+        st.plotly_chart(fig6, width='stretch')
 
 with tab_map:
     st.subheader("Applications by Zip Code")
