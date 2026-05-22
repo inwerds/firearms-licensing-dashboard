@@ -4,7 +4,7 @@ import json
 from load_data import (
     get_yearly_counts, get_type_counts, get_processing_days,
     get_zip_counts, get_summary_stats, get_municipalities,
-    get_raw_data, get_full_filtered_data
+    get_raw_data, get_full_filtered_data, get_sex_counts
 )
 
 # --- Page config ---
@@ -94,6 +94,38 @@ with tab_charts:
             showarrow=True, arrowhead=2, yshift=10
         )
     st.plotly_chart(fig3, width='stretch')
+
+    st.subheader("Applications by Sex over Time")
+    sex_counts = get_sex_counts(year_min, year_max, selected_types, muni)
+
+    # Add a female percentage column for the annotation
+    sex_pivot = sex_counts.pivot(index="year", columns="sex", values="applications").fillna(0)
+    sex_pivot["pct_female"] = (sex_pivot["FEMALE"] / (sex_pivot["FEMALE"] + sex_pivot["MALE"]) * 100).round(1)
+    sex_pivot = sex_pivot.reset_index()
+
+    fig4 = px.bar(
+        sex_counts,
+        x="year",
+        y="applications",
+        color="sex",
+        barmode="stack",
+        color_discrete_map={"MALE": "#4C72B0", "FEMALE": "#DD8452"},
+        title="Applications by Sex per Year",
+        labels={"applications": "Number of Applications", "sex": "Sex"}
+    )
+    st.plotly_chart(fig4, width='stretch')
+
+    # Female share line chart
+    fig5 = px.line(
+        sex_pivot,
+        x="year",
+        y="pct_female",
+        markers=True,
+        title="Female Applications as % of Total by Year",
+        labels={"pct_female": "Female %", "year": "Year"}
+    )
+    fig5.update_layout(yaxis_ticksuffix="%")
+    st.plotly_chart(fig5, width='stretch')
 
 with tab_map:
     st.subheader("Applications by Zip Code")

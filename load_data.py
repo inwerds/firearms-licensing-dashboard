@@ -153,3 +153,23 @@ def get_full_filtered_data(year_min, year_max, app_types, municipality=None):
     result = con.execute(query, params).df()
     con.close()
     return result
+
+def get_sex_counts(year_min, year_max, app_types, municipality=None):
+    con = get_connection()
+    muni_filter = "AND licensing_authority = ?" if municipality else ""
+    params = [year_min, year_max] + app_types
+    if municipality:
+        params.append(municipality)
+    query = f"""
+        SELECT year, sex, COUNT(*) as applications
+        FROM applications
+        WHERE year >= ? AND year <= ?
+        AND application_type IN ({','.join(['?']*len(app_types))})
+        AND sex IN ('MALE', 'FEMALE')
+        {muni_filter}
+        GROUP BY year, sex
+        ORDER BY year
+    """
+    result = con.execute(query, params).df()
+    con.close()
+    return result
