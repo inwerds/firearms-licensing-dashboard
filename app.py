@@ -72,7 +72,7 @@ col4.metric("Median Processing Days", f"{stats['median_days']:.0f}")
 st.divider()
 
 # --- Tabs ---
-tab_charts, tab_map, tab_data = st.tabs(["📈 Charts", "🗺️ Map", "📋 Raw Data"])
+tab_charts, tab_map, tab_data, tab_about = st.tabs(["📈 Charts", "🗺️ Map", "📋 Raw Data", "ℹ️ About"])
 
 with tab_charts:
 
@@ -231,3 +231,39 @@ with tab_data:
             file_name="ma_firearms_filtered.csv",
             mime="text/csv"
         )
+
+with tab_about:
+    st.subheader("Data Source")
+    st.markdown(
+        "The underlying data comes from the **Massachusetts Executive Office of Public Safety and Security (EOPSS)**, "
+        "obtained via public records requests. It covers firearms license applications filed between **2006 and 2024**, "
+        "comprising approximately **1.6 million applications** across all Massachusetts municipalities."
+    )
+
+    st.subheader("Methodology")
+    st.markdown(
+        "The raw data was delivered as **5 CSV files** spanning different time periods. "
+        "These were combined, deduplicated, and cleaned — including normalizing applicant zip codes to 5-digit format. "
+        "The cleaned dataset is stored in a **DuckDB** database and queried on demand, keeping memory usage low "
+        "even at 1.6 million rows."
+    )
+
+    st.subheader("Tech Stack")
+    st.markdown(
+        "- **Python** — core language\n"
+        "- **DuckDB** — embedded analytical database\n"
+        "- **Pandas** — data wrangling\n"
+        "- **Plotly** — interactive charts\n"
+        "- **Streamlit** — dashboard framework\n"
+        "- **Streamlit Community Cloud** — hosting"
+    )
+
+    st.subheader("About This Project")
+    st.markdown(
+        "This dashboard was built by a non-developer using AI-assisted development with "
+        "[Claude](https://claude.ai) (Anthropic). No prior software engineering background — "
+        "just curiosity about public data and how firearms licensing works in Massachusetts."
+    )
+
+    st.subheader("Contact")
+    st.markdown("Reddit: [u/whiskeygraven0g](https://www.reddit.com/user/whiskeygraven0g)")
