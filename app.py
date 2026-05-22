@@ -16,6 +16,25 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+    <style>
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding: 0 20px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 6px 6px 0 0;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #f0f2f6;
+        border-bottom: 3px solid #ff4b4b;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 @st.cache_data
 def load_geojson():
     with open("data/ma_zip_codes.geojson") as f:
@@ -205,6 +224,7 @@ with tab_charts:
 with tab_map:
     st.subheader("Applications by Zip Code")
     st.markdown("Colored by total applications · filtered by sidebar selections")
+    st.caption("Note: the map shows zip codes where applicants live, not where they applied. When filtering by municipality, applicants may live in neighboring towns outside that municipality's boundaries.")
     st.info("Click the button to generate the map after setting your filters.")
 
     if st.button("Generate Map"):
@@ -320,15 +340,17 @@ with tab_about:
         "The underlying data comes from the **Massachusetts Executive Office of Public Safety and Security (EOPSS)**, "
         "downloaded directly from the [EOPSS firearms licensing data page](https://www.mass.gov/info-details/data-about-firearms-licensing-and-transactions). "
         "It covers firearms license applications filed between **2006 and 2024**, "
-        "comprising approximately **1.6 million applications** across all Massachusetts municipalities."
+        "comprising approximately **1.6 million applications** across all Massachusetts municipalities. "
+        "Municipal population figures used for per capita calculations are drawn from **U.S. Census data via Wikipedia**."
     )
 
     st.subheader("Methodology")
     st.markdown(
         "The raw data was delivered as **5 CSV files** spanning different time periods. "
         "These were combined, deduplicated, and cleaned — including normalizing applicant zip codes to 5-digit format. "
-        "The cleaned dataset is stored in a **DuckDB** database and queried on demand, keeping memory usage low "
-        "even at 1.6 million rows."
+        "The cleaned dataset is stored as a **Parquet file** and queried on demand using **DuckDB** in-memory, "
+        "keeping memory usage low even at 1.6 million rows. "
+        "A partial **2025 snapshot** of active licenses was separately obtained from EOPSS and is displayed in the Active Licenses tab."
     )
 
     st.subheader("Tech Stack")
@@ -341,7 +363,7 @@ with tab_about:
         "- **Streamlit Community Cloud** — hosting"
     )
 
-    st.subheader("About This Project")
+    st.subheader("🔫 About Me")
     st.markdown(
         "I like guns and solving problems. Not a developer. Used Claude."
     )
