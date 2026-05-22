@@ -2,7 +2,17 @@ import duckdb
 import pandas as pd
 from pathlib import Path
 
-PARQUET_PATH = str(Path(__file__).parent / "data" / "ma_firearms.parquet")
+_HERE = Path(__file__).parent.resolve()
+PARQUET_PATH = str(_HERE / "data" / "ma_firearms.parquet")
+
+print(f"[load_data] PARQUET_PATH resolved to: {PARQUET_PATH}")
+
+if not Path(PARQUET_PATH).exists():
+    raise FileNotFoundError(
+        f"[load_data] Parquet file not found at: {PARQUET_PATH}\n"
+        f"  __file__ = {__file__}\n"
+        f"  _HERE    = {_HERE}"
+    )
 
 def get_connection():
     con = duckdb.connect()
