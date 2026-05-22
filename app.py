@@ -1,5 +1,6 @@
 import streamlit as st
 import plotly.express as px
+import pandas as pd
 import json
 from load_data import (
     get_yearly_counts, get_type_counts, get_processing_days,
@@ -23,6 +24,10 @@ def load_geojson():
 @st.cache_data
 def cached_municipalities():
     return get_municipalities()
+
+@st.cache_data
+def get_active_licenses():
+    return pd.read_excel("data/raw/active_licenses_2025.xlsx")
 
 # --- Header ---
 st.title("Massachusetts Firearms Licensing Dashboard")
@@ -72,7 +77,7 @@ col4.metric("Median Processing Days", f"{stats['median_days']:.0f}")
 st.divider()
 
 # --- Tabs ---
-tab_charts, tab_map, tab_data, tab_about = st.tabs(["📈 Charts", "🗺️ Map", "📋 Raw Data", "ℹ️ About"])
+tab_charts, tab_map, tab_licenses, tab_data, tab_about = st.tabs(["📈 Charts", "🗺️ Map", "📋 Active Licenses", "📋 Raw Data", "ℹ️ About"])
 
 with tab_charts:
 
@@ -200,6 +205,53 @@ with tab_map:
             top_zips = zip_counts.head(20).reset_index(drop=True)
             top_zips.index += 1
             st.dataframe(top_zips, width='stretch')
+
+with tab_licenses:
+    st.subheader("Active Licenses — 2025 Snapshot")
+
+    active = get_active_licenses()
+
+    st.metric("Total Active Licenses Statewide", f"{active['Count'].sum():,}")
+
+    by_muni = (
+        active.groupby("Licensing Authority", as_index=False)["Count"]
+        .sum()
+        .sort_values("Count", ascending=False)
+    )
+    top20 = by_muni.head(20).sort_values("Count", ascending=True)
+
+    st.subheader("Top 20 Municipalities by Active License Count")
+    fig_lic1 = px.bar(
+        top20,
+        x="Count",
+        y="Licensing Authority",
+        orientation="h",
+        labels={"Count": "Active Licenses", "Licensing Authority": "Municipality"},
+    )
+    st.plotly_chart(fig_lic1, width='stretch')
+
+    st.subheader("License Type Breakdown — Top 20 Municipalities")
+    top20_names = by_muni.head(20)["Licensing Authority"].tolist()
+    top20_detail = (
+        active[active["Licensing Authority"].isin(top20_names)]
+        .copy()
+    )
+    muni_order = by_muni.head(20).sort_values("Count", ascending=True)["Licensing Authority"].tolist()
+    top20_detail["Licensing Authority"] = pd.Categorical(
+        top20_detail["Licensing Authority"], categories=muni_order, ordered=True
+    )
+    top20_detail = top20_detail.sort_values("Licensing Authority")
+
+    fig_lic2 = px.bar(
+        top20_detail,
+        x="Count",
+        y="Licensing Authority",
+        color="License Type",
+        orientation="h",
+        barmode="stack",
+        labels={"Count": "Active Licenses", "Licensing Authority": "Municipality"},
+    )
+    st.plotly_chart(fig_lic2, width='stretch')
 
 with tab_data:
     st.subheader("Raw Data")

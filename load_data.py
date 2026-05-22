@@ -2,10 +2,12 @@ import duckdb
 import pandas as pd
 from pathlib import Path
 
-DB_PATH = str(Path(__file__).parent / "data" / "ma_firearms.db")
+PARQUET_PATH = str(Path(__file__).parent / "data" / "ma_firearms.parquet")
 
 def get_connection():
-    return duckdb.connect(DB_PATH, read_only=True)
+    con = duckdb.connect()
+    con.execute(f"CREATE VIEW applications AS SELECT * FROM read_parquet('{PARQUET_PATH}')")
+    return con
 
 def _build_filters(app_types, municipality, zip_code):
     """Return (filter_clause, extra_params) for the common optional filters."""
