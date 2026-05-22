@@ -6,7 +6,7 @@ from load_data import (
     get_yearly_counts, get_type_counts, get_processing_days,
     get_zip_counts, get_summary_stats, get_municipalities,
     get_raw_data, get_full_filtered_data, get_sex_counts, get_yoy_change,
-    get_female_pct
+    get_female_pct, get_licenses_per_capita
 )
 
 # --- Page config ---
@@ -35,6 +35,8 @@ st.markdown("19 years of licensing data · 2006–2024 · 1.6 million applicatio
 
 # --- Sidebar filters ---
 st.sidebar.header("Filters")
+st.sidebar.markdown("Explore 19 years of Massachusetts firearms licensing data. Use the filters below to narrow the data — all charts update automatically.")
+st.sidebar.markdown("---")
 
 year_min, year_max = st.sidebar.slider(
     "Year range",
@@ -42,21 +44,25 @@ year_min, year_max = st.sidebar.slider(
     max_value=2024,
     value=(2006, 2024)
 )
+st.sidebar.caption("Filter all charts and data to applications submitted within this date range.")
 
 selected_types = st.sidebar.multiselect(
     "Application type",
     options=["New", "Renewal", "Replacement"],
     default=["New", "Renewal", "Replacement"]
 )
+st.sidebar.caption("New: first-time applicants. Renewal: existing license holders. Replacement: lost, stolen, or damaged licenses.")
 
 all_municipalities = cached_municipalities()
 selected_municipality = st.sidebar.selectbox(
     "Municipality",
     options=["All municipalities"] + all_municipalities,
 )
+st.sidebar.caption("Filter to a single licensing authority (usually a local police department). Selecting a town updates all charts, the map, and raw data.")
 
 zip_input = st.sidebar.text_input("Zip code", placeholder="e.g. 02101")
 zip_code = zip_input.strip() or None
+st.sidebar.caption("Filter to applicants from a specific zip code. Note: this reflects where the applicant lives, not where they applied.")
 
 # --- Guard: no application types selected ---
 if not selected_types:
@@ -101,23 +107,27 @@ with tab_charts:
     st.markdown(" ".join(summary_parts))
 
     st.subheader("Applications by Year")
+    st.caption("Total firearms license applications submitted to Massachusetts police departments each year from 2006–2024. Includes all application types and license categories.")
     yearly = get_yearly_counts(year_min, year_max, selected_types, muni, zip_code)
     fig1 = px.line(yearly, x="year", y="applications", markers=True)
     st.plotly_chart(fig1, width='stretch')
 
     st.subheader("Applications by Type")
+    st.caption("Breakdown of applications by type. New applications are first-time applicants. Renewals are existing license holders renewing before expiration. Replacements are for lost, stolen, or damaged licenses.")
     by_type = get_type_counts(year_min, year_max, selected_types, muni, zip_code)
     fig2 = px.bar(by_type, x="year", y="applications",
                   color="application_type", barmode="stack")
     st.plotly_chart(fig2, width='stretch')
 
     st.subheader("Median Processing Days by Year")
+    st.caption("The median number of days between application submission and license issuance. Spikes may reflect surges in application volume overwhelming local police departments.")
     processing = get_processing_days(year_min, year_max, selected_types, muni, zip_code)
     fig3 = px.bar(processing, x="year", y="processing_days",
                   color="processing_days", color_continuous_scale="Reds")
     st.plotly_chart(fig3, width='stretch')
 
     st.subheader("Applications by Sex over Time")
+    st.caption("Annual breakdown of applications by reported sex. The second chart shows female applications as a share of total, revealing a gradual long-term trend toward more diverse applicants.")
     sex_counts = get_sex_counts(year_min, year_max, selected_types, muni, zip_code)
 
     # Add a female percentage column for the annotation
@@ -150,6 +160,7 @@ with tab_charts:
     st.plotly_chart(fig5, width='stretch')
 
     st.subheader("Year-over-Year % Change in Applications")
+    st.caption("Percentage change in total applications compared to the prior year. Green bars indicate growth, red bars indicate decline. Large swings often correlate with national events or legislation.")
     yoy = get_yoy_change(year_min, year_max, selected_types, muni, zip_code)
     if len(yoy) < 2:
         st.info("Need at least two years of data to compute year-over-year change.")
@@ -171,6 +182,25 @@ with tab_charts:
         )
         fig6.add_hline(y=0, line_dash="dash", line_color="black", line_width=1)
         st.plotly_chart(fig6, width='stretch')
+
+    st.subheader("Applications per 1,000 Residents — Top 30 Municipalities")
+    st.caption("Total applications normalized by town population, showing which municipalities have the highest licensing rates relative to their size. More meaningful than raw counts for comparing towns of different sizes.")
+    per_capita = get_licenses_per_capita(year_min, year_max, selected_types, muni)
+    if len(per_capita) == 0:
+        st.info("No per capita data available for current filters.")
+    else:
+        top30 = per_capita.head(30).sort_values("applications_per_1000", ascending=True)
+        fig7 = px.bar(
+            top30,
+            x="applications_per_1000",
+            y="licensing_authority",
+            orientation="h",
+            labels={
+                "applications_per_1000": "Applications per 1,000 Residents",
+                "licensing_authority": "Municipality",
+            },
+        )
+        st.plotly_chart(fig7, width='stretch')
 
 with tab_map:
     st.subheader("Applications by Zip Code")

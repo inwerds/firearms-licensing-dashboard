@@ -218,3 +218,64 @@ def get_sex_counts(year_min, year_max, app_types, municipality=None, zip_code=No
     result = con.execute(query, params).df()
     con.close()
     return result
+
+POPULATION_PATH = str(Path(__file__).parent / "data" / "raw" / "ma_population.csv")
+
+_SUFFIX_STRIP = [
+    " POLICE DEPARTMENT",
+    " POLICE DEPT",
+    " POLICE",
+    " PD",
+]
+
+_MANUAL_MAP = {
+    "ATTLEBOROUGH": "ATTLEBORO",
+    "MANCHESTER": "MANCHESTER-BY-THE-SEA",
+}
+
+_EXCLUDE = {"CRIMINAL HISTORY SYSTEMS BOARD", "MASS STATE POLICE"}
+
+def _normalize_authority(name):
+    upper = name.upper().strip()
+    for suffix in _SUFFIX_STRIP:
+        if upper.endswith(suffix):
+            upper = upper[: -len(suffix)].strip()
+            break
+    return _MANUAL_MAP.get(upper, upper)
+
+def get_licenses_per_capita(year_min, year_max, app_types, municipality=None):
+    pop = pd.read_csv(POPULATION_PATH)
+    pop = pop[
+        pop["towns"].notna() &
+        pop["population"].notna() &
+        ~pop["towns"].str.contains("BY POPULATION", na=False) &
+        ~pop["towns"].str.contains("COMMUNITY", na=False)
+    ].drop_duplicates(subset="towns").copy()
+    pop["join_key"] = pop["towns"].str.upper().str.strip()
+
+    con = get_connection()
+    muni_filter = "AND licensing_authority = ?" if municipality else ""
+    params = [year_min, year_max] + app_types
+    if municipality:
+        params.append(municipality)
+    query = f"""
+        SELECT licensing_authority, COUNT(*) as applications
+        FROM applications
+        WHERE year >= ? AND year <= ?
+        AND application_type IN ({','.join(['?']*len(app_types))})
+        AND licensing_authority IS NOT NULL
+        {muni_filter}
+        GROUP BY licensing_authority
+        ORDER BY applications DESC
+    """
+    apps = con.execute(query, params).df()
+    con.close()
+
+    apps = apps[~apps["licensing_authority"].isin(_EXCLUDE)].copy()
+    apps["join_key"] = apps["licensing_authority"].apply(_normalize_authority)
+
+    merged = apps.merge(pop[["join_key", "population"]], on="join_key", how="inner")
+    merged["applications_per_1000"] = (
+        (merged["applications"] / merged["population"] * 1000).round(1)
+    )
+    return merged.sort_values("applications_per_1000", ascending=False).reset_index(drop=True)
