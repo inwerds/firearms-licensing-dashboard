@@ -236,7 +236,8 @@ with tab_about:
     st.subheader("Data Source")
     st.markdown(
         "The underlying data comes from the **Massachusetts Executive Office of Public Safety and Security (EOPSS)**, "
-        "obtained via public records requests. It covers firearms license applications filed between **2006 and 2024**, "
+        "downloaded directly from the [EOPSS firearms licensing data page](https://www.mass.gov/info-details/data-about-firearms-licensing-and-transactions). "
+        "It covers firearms license applications filed between **2006 and 2024**, "
         "comprising approximately **1.6 million applications** across all Massachusetts municipalities."
     )
 
