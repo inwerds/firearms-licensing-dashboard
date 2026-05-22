@@ -261,9 +261,7 @@ with tab_about:
 
     st.subheader("About This Project")
     st.markdown(
-        "This dashboard was built by a non-developer using AI-assisted development with "
-        "[Claude](https://claude.ai) (Anthropic). No prior software engineering background — "
-        "just curiosity about public data and how firearms licensing works in Massachusetts."
+        "I like guns and solving problems. Not a developer. Used Claude."
     )
 
     st.subheader("Contact")
