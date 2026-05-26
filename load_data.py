@@ -1,6 +1,7 @@
 import duckdb
 import pandas as pd
 from pathlib import Path
+from mappings import AUTHORITY_TO_TOWN, EXCLUDE_AUTHORITIES
 
 _HERE = Path(__file__).parent.resolve()
 PARQUET_PATH = str(_HERE / "data" / "ma_firearms.parquet")
@@ -230,6 +231,7 @@ def get_sex_counts(year_min, year_max, app_types, municipality=None, zip_code=No
     return result
 
 POPULATION_PATH = str(Path(__file__).parent / "data" / "raw" / "ma_population.csv")
+VOTING_PATH = str(Path(__file__).parent / "data" / "raw" / "ma_voting_2024.csv")
 
 _SUFFIX_STRIP = [
     " POLICE DEPARTMENT",
@@ -238,20 +240,13 @@ _SUFFIX_STRIP = [
     " PD",
 ]
 
-_MANUAL_MAP = {
-    "ATTLEBOROUGH": "ATTLEBORO",
-    "MANCHESTER": "MANCHESTER-BY-THE-SEA",
-}
-
-_EXCLUDE = {"CRIMINAL HISTORY SYSTEMS BOARD", "MASS STATE POLICE"}
-
 def _normalize_authority(name):
     upper = name.upper().strip()
     for suffix in _SUFFIX_STRIP:
         if upper.endswith(suffix):
             upper = upper[: -len(suffix)].strip()
             break
-    return _MANUAL_MAP.get(upper, upper)
+    return AUTHORITY_TO_TOWN.get(upper, upper)
 
 def get_licenses_per_capita(year_min, year_max, app_types, municipality=None):
     pop = pd.read_csv(POPULATION_PATH)
@@ -281,7 +276,7 @@ def get_licenses_per_capita(year_min, year_max, app_types, municipality=None):
     apps = con.execute(query, params).df()
     con.close()
 
-    apps = apps[~apps["licensing_authority"].isin(_EXCLUDE)].copy()
+    apps = apps[~apps["licensing_authority"].isin(EXCLUDE_AUTHORITIES)].copy()
     apps["join_key"] = apps["licensing_authority"].apply(_normalize_authority)
 
     merged = apps.merge(pop[["join_key", "population"]], on="join_key", how="inner")
@@ -289,3 +284,34 @@ def get_licenses_per_capita(year_min, year_max, app_types, municipality=None):
         (merged["applications"] / merged["population"] * 1000).round(1)
     )
     return merged.sort_values("applications_per_1000", ascending=False).reset_index(drop=True)
+
+def get_voting_data():
+    df = pd.read_csv(VOTING_PATH)
+    df = df[df["City/Town"].notna()].copy()
+    df = df.drop(columns=["Unnamed: 1", "Unnamed: 2"], errors="ignore")
+    for col in ["Harris/ Walz", "Trump/ Vance", "Total Votes Cast"]:
+        df[col] = pd.to_numeric(
+            df[col].astype(str).str.replace(",", "", regex=False),
+            errors="coerce"
+        )
+    df = df[df["Total Votes Cast"].notna()].copy()
+    df["trump_pct"] = (df["Trump/ Vance"] / df["Total Votes Cast"] * 100).round(1)
+    df["harris_pct"] = (df["Harris/ Walz"] / df["Total Votes Cast"] * 100).round(1)
+    df["join_key"] = df["City/Town"].str.upper().str.strip()
+    df["join_key"] = df["join_key"].map(lambda x: AUTHORITY_TO_TOWN.get(x, x))
+    return df
+
+def get_licensing_vs_voting():
+    per_capita = get_licenses_per_capita(2006, 2024, ["New", "Renewal", "Replacement"])
+    voting = get_voting_data()
+    merged = per_capita.merge(
+        voting[["join_key", "trump_pct", "harris_pct", "Total Votes Cast"]],
+        on="join_key",
+        how="inner"
+    )
+    merged = merged.rename(columns={
+        "licensing_authority": "town",
+        "Total Votes Cast": "total_votes",
+    })
+    merged["lean"] = (merged["trump_pct"] - merged["harris_pct"]).round(1)
+    return merged[["town", "applications_per_1000", "trump_pct", "harris_pct", "lean", "total_votes"]]

@@ -6,7 +6,7 @@ from load_data import (
     get_yearly_counts, get_type_counts, get_processing_days,
     get_zip_counts, get_summary_stats, get_municipalities,
     get_raw_data, get_full_filtered_data, get_sex_counts, get_yoy_change,
-    get_female_pct, get_licenses_per_capita
+    get_female_pct, get_licenses_per_capita, get_voting_data, get_licensing_vs_voting
 )
 
 # --- Page config ---
@@ -220,6 +220,28 @@ with tab_charts:
             },
         )
         st.plotly_chart(fig7, width='stretch')
+
+    st.subheader("Firearms Licensing Rate vs. Political Lean by Municipality")
+    st.caption("Each dot represents one Massachusetts municipality. Political lean is calculated as the difference between Trump and Harris vote share in 2024. Positive values lean Republican, negative values lean Democratic. The trendline shows the correlation between political lean and licensing rate. Hover over any dot to see the town name and details.")
+    lv = get_licensing_vs_voting()
+    if len(lv) == 0:
+        st.info("No data available for licensing vs. voting chart.")
+    else:
+        fig8 = px.scatter(
+            lv,
+            x="lean",
+            y="applications_per_1000",
+            hover_name="town",
+            trendline="ols",
+            color="lean",
+            color_continuous_scale="RdBu_r",
+            color_continuous_midpoint=0,
+            labels={
+                "lean": "Political Lean (negative = Democratic, positive = Republican)",
+                "applications_per_1000": "Applications per 1,000 Residents",
+            },
+        )
+        st.plotly_chart(fig8, width='stretch')
 
 with tab_map:
     st.subheader("Applications by Zip Code")
