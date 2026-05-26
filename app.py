@@ -222,8 +222,15 @@ with tab_charts:
         st.plotly_chart(fig7, width='stretch')
 
     st.subheader("Firearms Licensing Rate vs. Political Lean by Municipality")
-    st.caption("Each dot represents one Massachusetts municipality. Political lean is calculated as the difference between Trump and Harris vote share in 2024. Positive values lean Republican, negative values lean Democratic. The trendline shows the correlation between political lean and licensing rate. Hover over any dot to see the town name and details.")
-    lv = get_licensing_vs_voting()
+    election_year = st.selectbox("Election Year", options=[2024, 2020, 2016, 2012, 2008])
+    st.caption(
+        f"Each dot represents one Massachusetts municipality. Political lean is calculated as the "
+        f"difference between the Republican and Democratic presidential candidate vote share in {election_year}. "
+        f"Positive values lean Republican, negative values lean Democratic. "
+        f"The trendline shows the correlation between political lean and licensing rate. "
+        f"Hover over any dot to see the town name and details."
+    )
+    lv = get_licensing_vs_voting(election_year=election_year)
     if len(lv) == 0:
         st.info("No data available for licensing vs. voting chart.")
     else:

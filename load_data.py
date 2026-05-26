@@ -231,7 +231,7 @@ def get_sex_counts(year_min, year_max, app_types, municipality=None, zip_code=No
     return result
 
 POPULATION_PATH = str(Path(__file__).parent / "data" / "raw" / "ma_population.csv")
-VOTING_PATH = str(Path(__file__).parent / "data" / "raw" / "ma_voting_2024.csv")
+_VOTING_DIR = Path(__file__).parent / "data" / "raw"
 
 _SUFFIX_STRIP = [
     " POLICE DEPARTMENT",
@@ -285,27 +285,39 @@ def get_licenses_per_capita(year_min, year_max, app_types, municipality=None):
     )
     return merged.sort_values("applications_per_1000", ascending=False).reset_index(drop=True)
 
-def get_voting_data():
-    df = pd.read_csv(VOTING_PATH)
+def get_voting_data(year=2024):
+    CANDIDATE_COLUMNS = {
+        2008: {"dem": "Obama/ Biden",   "rep": "McCain/ Palin"},
+        2012: {"dem": "Obama/ Biden",   "rep": "Romney/ Ryan"},
+        2016: {"dem": "Clinton/ Kaine", "rep": "Trump/ Pence"},
+        2020: {"dem": "Biden/ Harris",  "rep": "Trump/ Pence"},
+        2024: {"dem": "Harris/ Walz",   "rep": "Trump/ Vance"},
+    }
+    cols = CANDIDATE_COLUMNS[year]
+    path = str(_VOTING_DIR / f"ma_voting_{year}.csv")
+    df = pd.read_csv(path)
+    df = df.iloc[1:].copy()                                      # drop party-label row
     df = df[df["City/Town"].notna()].copy()
     df = df.drop(columns=["Unnamed: 1", "Unnamed: 2"], errors="ignore")
-    for col in ["Harris/ Walz", "Trump/ Vance", "Total Votes Cast"]:
+    for col in [cols["dem"], cols["rep"], "Total Votes Cast"]:
         df[col] = pd.to_numeric(
             df[col].astype(str).str.replace(",", "", regex=False),
             errors="coerce"
         )
     df = df[df["Total Votes Cast"].notna()].copy()
-    df["trump_pct"] = (df["Trump/ Vance"] / df["Total Votes Cast"] * 100).round(1)
-    df["harris_pct"] = (df["Harris/ Walz"] / df["Total Votes Cast"] * 100).round(1)
+    df["rep_pct"] = (df[cols["rep"]] / df["Total Votes Cast"] * 100).round(1)
+    df["dem_pct"] = (df[cols["dem"]] / df["Total Votes Cast"] * 100).round(1)
+    df["lean"]    = (df["rep_pct"] - df["dem_pct"]).round(1)
     df["join_key"] = df["City/Town"].str.upper().str.strip()
     df["join_key"] = df["join_key"].map(lambda x: AUTHORITY_TO_TOWN.get(x, x))
+    df["year"] = year
     return df
 
-def get_licensing_vs_voting():
+def get_licensing_vs_voting(election_year=2024):
     per_capita = get_licenses_per_capita(2006, 2024, ["New", "Renewal", "Replacement"])
-    voting = get_voting_data()
+    voting = get_voting_data(year=election_year)
     merged = per_capita.merge(
-        voting[["join_key", "trump_pct", "harris_pct", "Total Votes Cast"]],
+        voting[["join_key", "rep_pct", "dem_pct", "lean", "Total Votes Cast"]],
         on="join_key",
         how="inner"
     )
@@ -313,5 +325,4 @@ def get_licensing_vs_voting():
         "licensing_authority": "town",
         "Total Votes Cast": "total_votes",
     })
-    merged["lean"] = (merged["trump_pct"] - merged["harris_pct"]).round(1)
-    return merged[["town", "applications_per_1000", "trump_pct", "harris_pct", "lean", "total_votes"]]
+    return merged[["town", "applications_per_1000", "rep_pct", "dem_pct", "lean", "total_votes"]]
